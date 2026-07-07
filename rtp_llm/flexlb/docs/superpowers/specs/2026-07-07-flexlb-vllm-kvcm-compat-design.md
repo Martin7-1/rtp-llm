@@ -28,7 +28,7 @@ Inputs reviewed:
 
 1. Keep compatibility with existing RTP-LLM style workers that still support `GetCacheStatus`.
 2. Support new vLLM workers that expose KV capacity fields through `GetWorkerStatus`.
-3. Add an `ENABLE_KVCM` switch so FlexLB stops calling worker `GetCacheStatus` when KVCM mode is enabled.
+3. Add a `KVCM_ENABLE` switch so FlexLB stops calling worker `GetCacheStatus` when KVCM mode is enabled.
 4. Pre-create a `KvcmCacheAwareService` Spring bean path for phase two without implementing KVCM gRPC lookup yet.
 
 ## Non-Goals
@@ -42,7 +42,7 @@ Inputs reviewed:
 
 Use Spring Boot `@ConditionalOnProperty` for bean selection.
 
-The environment variable `ENABLE_KVCM=true` maps to Spring property `enable.kvcm=true`. With this property:
+The environment variable `KVCM_ENABLE=true` maps to Spring property `kvcm.enable=true`. With this property:
 
 - `KvcmCacheAwareService` becomes the active `CacheAwareService`.
 - `DefaultCacheAwareService` is disabled.
@@ -111,7 +111,7 @@ When fields are absent or default to `0`, it leaves existing cache status handli
 
 Add `KvcmCacheAwareService implements CacheAwareService`:
 
-- Active only when `enable.kvcm=true`.
+- Active only when `kvcm.enable=true`.
 - `findMatchingEngines(...)` returns an empty map in phase one.
 - `updateEngineBlockCache(...)` returns a success no-op result.
 
