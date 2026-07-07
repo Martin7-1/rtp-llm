@@ -34,6 +34,13 @@ public class EngineStatusConverter {
         response.setLatestFinishedVersion(workerStatusPB.getLatestFinishedVersion());
         response.setAlive(workerStatusPB.getAlive());
 
+        CacheStatus cacheStatus = new CacheStatus();
+        cacheStatus.setAvailableKvCache(workerStatusPB.getAvailableKvCache());
+        cacheStatus.setTotalKvCache(workerStatusPB.getTotalKvCache());
+        cacheStatus.setBlockSize(workerStatusPB.getBlockSize());
+        cacheStatus.setVersion(workerStatusPB.getStatusVersion());
+        response.setCacheStatus(cacheStatus);
+
         List<EngineRpcService.TaskInfoPB> srcRunningTaskInfoList = workerStatusPB.getRunningTaskInfoList();
         List<EngineRpcService.TaskInfoPB> waitingTaskInfoList = srcRunningTaskInfoList.stream().filter(taskInfoPB -> taskInfoPB.getIsWaiting()).toList();
         List<EngineRpcService.TaskInfoPB> runningTaskInfoList = srcRunningTaskInfoList.stream().filter(taskInfoPB -> !taskInfoPB.getIsWaiting()).toList();
