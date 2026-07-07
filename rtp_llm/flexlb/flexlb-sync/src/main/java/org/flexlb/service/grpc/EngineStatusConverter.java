@@ -38,7 +38,7 @@ public class EngineStatusConverter {
         cacheStatus.setAvailableKvCache(workerStatusPB.getAvailableKvCache());
         cacheStatus.setTotalKvCache(workerStatusPB.getTotalKvCache());
         cacheStatus.setBlockSize(workerStatusPB.getBlockSize());
-        cacheStatus.setVersion(workerStatusPB.getStatusVersion());
+        cacheStatus.setVersion(-1L);
         response.setCacheStatus(cacheStatus);
 
         List<EngineRpcService.TaskInfoPB> srcRunningTaskInfoList = workerStatusPB.getRunningTaskInfoList();
