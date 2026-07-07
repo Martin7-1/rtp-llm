@@ -123,7 +123,24 @@ class EngineStatusConverterTest {
         assertEquals(100L, response.getCacheStatus().getAvailableKvCache());
         assertEquals(300L, response.getCacheStatus().getTotalKvCache());
         assertEquals(16L, response.getCacheStatus().getBlockSize());
-        assertEquals(7L, response.getCacheStatus().getVersion());
+        assertEquals(-1L, response.getCacheStatus().getVersion());
+    }
+
+    @Test
+    void should_keepInvalidKvCapacityRecognizableForOldWorkerStatus() {
+        EngineRpcService.WorkerStatusPB workerStatusPB = EngineRpcService.WorkerStatusPB.newBuilder()
+                .setRole("PREFILL")
+                .setStatusVersion(7L)
+                .setAlive(true)
+                .build();
+
+        WorkerStatusResponse response = EngineStatusConverter.convertToWorkerStatusResponse(workerStatusPB);
+
+        assertNotNull(response.getCacheStatus());
+        assertEquals(0L, response.getCacheStatus().getAvailableKvCache());
+        assertEquals(0L, response.getCacheStatus().getTotalKvCache());
+        assertEquals(0L, response.getCacheStatus().getBlockSize());
+        assertEquals(-1L, response.getCacheStatus().getVersion());
     }
 }
 ```
@@ -147,7 +164,7 @@ In `EngineStatusConverter.convertToWorkerStatusResponse(...)`, after setting `al
         cacheStatus.setAvailableKvCache(workerStatusPB.getAvailableKvCache());
         cacheStatus.setTotalKvCache(workerStatusPB.getTotalKvCache());
         cacheStatus.setBlockSize(workerStatusPB.getBlockSize());
-        cacheStatus.setVersion(workerStatusPB.getStatusVersion());
+        cacheStatus.setVersion(-1L);
         response.setCacheStatus(cacheStatus);
 ```
 

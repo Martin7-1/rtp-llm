@@ -92,7 +92,7 @@ The fields are append-only and default to `0` when an older server does not send
 - `availableKvCache = workerStatusPB.available_kv_cache`
 - `totalKvCache = workerStatusPB.total_kv_cache`
 - `blockSize = workerStatusPB.block_size`
-- `version = workerStatusPB.status_version`
+- `version = -1`, because `CacheStatus.version` represents the old `GetCacheStatus` cache snapshot version, not `WorkerStatusPB.status_version`
 
 `GrpcWorkerStatusRunner` will update `WorkerStatus` capacity from this `cacheStatus` only when it is valid:
 
