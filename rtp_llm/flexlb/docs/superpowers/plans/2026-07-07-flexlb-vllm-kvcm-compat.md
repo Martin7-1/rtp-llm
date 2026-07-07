@@ -225,6 +225,8 @@ Add after the existing `verify(...)`:
         org.junit.jupiter.api.Assertions.assertEquals(2000L, workerStatus.getUsedKvCacheTokens().get());
 ```
 
+Also add a regression test with an existing `CacheStatus` containing `version`, `cachedKeys`, and `cacheKeySize`; valid worker-status KV capacity must update capacity fields while preserving that snapshot metadata. Add a malformed-capacity test where `availableKvCache > totalKvCache`; runner must ignore that response.
+
 - [ ] **Step 2: Run the test and verify it fails**
 
 Run:
@@ -248,13 +250,22 @@ Add this helper method near `logWorkerStatusUpdate(...)`:
 ```java
     private void updateKvCacheFromWorkerStatus(WorkerStatusResponse newWorkerStatus) {
         CacheStatus cacheStatus = newWorkerStatus.getCacheStatus();
-        if (cacheStatus == null || cacheStatus.getTotalKvCache() <= 0 || cacheStatus.getBlockSize() <= 0) {
+        if (cacheStatus == null || cacheStatus.getTotalKvCache() <= 0 || cacheStatus.getBlockSize() <= 0
+                || cacheStatus.getAvailableKvCache() < 0
+                || cacheStatus.getAvailableKvCache() > cacheStatus.getTotalKvCache()) {
             return;
         }
         long latestAvailableKvCacheTokens = cacheStatus.getAvailableKvCache();
         long latestUsedKvCacheTokens = cacheStatus.getTotalKvCache() - latestAvailableKvCacheTokens;
         workerStatus.updateKvCacheTokens(latestUsedKvCacheTokens, latestAvailableKvCacheTokens);
-        workerStatus.setCacheStatus(cacheStatus);
+        CacheStatus targetCacheStatus = workerStatus.getCacheStatus();
+        if (targetCacheStatus == null) {
+            targetCacheStatus = new CacheStatus();
+            workerStatus.setCacheStatus(targetCacheStatus);
+        }
+        targetCacheStatus.setAvailableKvCache(cacheStatus.getAvailableKvCache());
+        targetCacheStatus.setTotalKvCache(cacheStatus.getTotalKvCache());
+        targetCacheStatus.setBlockSize(cacheStatus.getBlockSize());
     }
 ```
 

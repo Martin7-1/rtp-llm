@@ -101,7 +101,7 @@ The fields are append-only and default to `0` when an older server does not send
 
 When valid, it will:
 
-- Set `workerStatus.cacheStatus`.
+- Merge capacity fields into `workerStatus.cacheStatus`, preserving any existing `GetCacheStatus` snapshot metadata such as `version`, `cachedKeys`, and `cacheKeySize`.
 - Update `workerStatus.availableKvCacheTokens`.
 - Update `workerStatus.usedKvCacheTokens` as `totalKvCache - availableKvCache`.
 
