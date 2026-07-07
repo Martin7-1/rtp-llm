@@ -1,5 +1,6 @@
 package org.flexlb.sync.runner;
 
+import org.flexlb.dao.master.CacheStatus;
 import org.flexlb.dao.master.TaskInfo;
 import org.flexlb.dao.master.WorkerStatus;
 import org.flexlb.dao.route.RoleType;
@@ -119,6 +120,7 @@ public class GrpcWorkerStatusRunner implements Runnable {
                 workerStatus.setAlive(newWorkerStatus.isAlive());
                 workerStatus.setDpSize(newWorkerStatus.getDpSize());
                 workerStatus.setTpSize(newWorkerStatus.getTpSize());
+                updateKvCacheFromWorkerStatus(newWorkerStatus);
 
                 // Update status timestamp and record actual sync interval
                 long nowUs = System.nanoTime() / 1000;
@@ -152,6 +154,7 @@ public class GrpcWorkerStatusRunner implements Runnable {
             workerStatus.setAlive(newWorkerStatus.isAlive());
             workerStatus.getStatusVersion().set(responseVersion != null ? responseVersion : -1L);
             workerStatus.getLatestFinishedTaskVersion().set(newWorkerStatus.getLatestFinishedVersion() != null ? newWorkerStatus.getLatestFinishedVersion() : -1L);
+            updateKvCacheFromWorkerStatus(newWorkerStatus);
 
             Map<String, TaskInfo> waitingTaskInfo = newWorkerStatus.getWaitingTaskInfo();
             Map<String, TaskInfo> runningTaskInfo = newWorkerStatus.getRunningTaskInfo();
@@ -182,6 +185,17 @@ public class GrpcWorkerStatusRunner implements Runnable {
             log("engine worker status check via gRPC exception, msg: " + e.getMessage());
             engineHealthReporter.reportStatusCheckerFail(modelName, BalanceStatusEnum.UNKNOWN_ERROR, ip, roleType);
         }
+    }
+
+    private void updateKvCacheFromWorkerStatus(WorkerStatusResponse newWorkerStatus) {
+        CacheStatus cacheStatus = newWorkerStatus.getCacheStatus();
+        if (cacheStatus == null || cacheStatus.getTotalKvCache() <= 0 || cacheStatus.getBlockSize() <= 0) {
+            return;
+        }
+        long latestAvailableKvCacheTokens = cacheStatus.getAvailableKvCache();
+        long latestUsedKvCacheTokens = cacheStatus.getTotalKvCache() - latestAvailableKvCacheTokens;
+        workerStatus.updateKvCacheTokens(latestUsedKvCacheTokens, latestAvailableKvCacheTokens);
+        workerStatus.setCacheStatus(cacheStatus);
     }
 
     private void logWorkerStatusUpdate(long startTime, WorkerStatus workerStatus) {
