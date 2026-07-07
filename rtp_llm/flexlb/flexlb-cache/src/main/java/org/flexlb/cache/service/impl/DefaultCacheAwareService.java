@@ -9,6 +9,7 @@ import org.flexlb.dao.master.CacheStatus;
 import org.flexlb.dao.master.WorkerStatus;
 import org.flexlb.dao.route.RoleType;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -24,6 +25,7 @@ import java.util.Set;
  */
 @Slf4j
 @Service
+@ConditionalOnProperty(prefix = "kvcm", name = "enable", havingValue = "false", matchIfMissing = true)
 public class DefaultCacheAwareService implements CacheAwareService {
     
     @Autowired
