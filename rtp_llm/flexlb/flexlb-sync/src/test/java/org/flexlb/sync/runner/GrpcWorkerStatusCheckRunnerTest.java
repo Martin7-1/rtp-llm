@@ -203,6 +203,46 @@ class GrpcWorkerStatusCheckRunnerTest {
         assertEquals(0L, workerStatus.getUsedKvCacheTokens().get());
     }
 
+    @Test
+    void should_updateKvCapacity_when_workerStatusVersionIsNotUpdated() {
+        // Arrange
+        String modelName = "test-model";
+        String ipPort = "127.0.0.1:8080";
+        String site = "test-site";
+        String group = "test-group";
+
+        WorkerStatus workerStatus = new WorkerStatus();
+        workerStatus.setIp("127.0.0.1");
+        workerStatus.setPort(8080);
+        workerStatus.getStatusVersion().set(100L);
+
+        EngineRpcService.WorkerStatusPB workerStatusPB = EngineRpcService.WorkerStatusPB.newBuilder()
+                .setRole("test-role")
+                .setStatusVersion(100)
+                .setAvailableKvCache(500)
+                .setTotalKvCache(1500)
+                .setBlockSize(16)
+                .setAlive(true)
+                .build();
+
+        RecordingEngineGrpcService engineGrpcService = new RecordingEngineGrpcService(workerStatusPB);
+
+        // Act
+        GrpcWorkerStatusRunner runner = new GrpcWorkerStatusRunner(
+                modelName, ipPort, site,
+                RoleType.PREFILL,
+                group, workerStatus, engineHealthReporter, engineGrpcService, 20);
+        runner.run();
+
+        // Assert
+        assertNotNull(workerStatus.getCacheStatus());
+        assertEquals(500L, workerStatus.getCacheStatus().getAvailableKvCache());
+        assertEquals(1500L, workerStatus.getCacheStatus().getTotalKvCache());
+        assertEquals(16L, workerStatus.getCacheStatus().getBlockSize());
+        assertEquals(500L, workerStatus.getAvailableKvCacheTokens().get());
+        assertEquals(1000L, workerStatus.getUsedKvCacheTokens().get());
+    }
+
     private static EngineHealthReporter noOpEngineHealthReporter() {
         try {
             Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
