@@ -1,5 +1,6 @@
 package org.flexlb.sync.runner;
 
+import org.flexlb.dao.master.CacheStatus;
 import org.flexlb.dao.master.WorkerStatus;
 import org.flexlb.dao.route.RoleType;
 import org.flexlb.engine.grpc.EngineRpcService;
@@ -10,10 +11,12 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class GrpcWorkerStatusCheckRunnerTest {
 
@@ -110,6 +113,91 @@ class GrpcWorkerStatusCheckRunnerTest {
         assertEquals(-1L, engineGrpcService.finishedTaskVersion);
         assertEquals(20L, engineGrpcService.requestTimeoutMs);
         assertEquals(RoleType.PREFILL, engineGrpcService.roleType);
+        assertNull(workerStatus.getCacheStatus());
+        assertEquals(0L, workerStatus.getAvailableKvCacheTokens().get());
+        assertEquals(0L, workerStatus.getUsedKvCacheTokens().get());
+    }
+
+    @Test
+    void should_preserveExistingCacheSnapshot_when_workerStatusUpdatesKvCapacity() {
+        // Arrange
+        String modelName = "test-model";
+        String ipPort = "127.0.0.1:8080";
+        String site = "test-site";
+        String group = "test-group";
+        Set<Long> cachedKeys = Set.of(11L, 22L);
+
+        CacheStatus existingCacheStatus = new CacheStatus();
+        existingCacheStatus.setVersion(42L);
+        existingCacheStatus.setCachedKeys(cachedKeys);
+        existingCacheStatus.setCacheKeySize(2L);
+
+        WorkerStatus workerStatus = new WorkerStatus();
+        workerStatus.setIp("127.0.0.1");
+        workerStatus.setPort(8080);
+        workerStatus.setCacheStatus(existingCacheStatus);
+
+        EngineRpcService.WorkerStatusPB workerStatusPB = EngineRpcService.WorkerStatusPB.newBuilder()
+                .setRole("test-role")
+                .setStatusVersion(100)
+                .setAvailableKvCache(1000)
+                .setTotalKvCache(3000)
+                .setBlockSize(16)
+                .setAlive(true)
+                .build();
+
+        RecordingEngineGrpcService engineGrpcService = new RecordingEngineGrpcService(workerStatusPB);
+
+        // Act
+        GrpcWorkerStatusRunner runner = new GrpcWorkerStatusRunner(
+                modelName, ipPort, site,
+                RoleType.PREFILL,
+                group, workerStatus, engineHealthReporter, engineGrpcService, 20);
+        runner.run();
+
+        // Assert
+        assertSame(existingCacheStatus, workerStatus.getCacheStatus());
+        assertEquals(1000L, workerStatus.getCacheStatus().getAvailableKvCache());
+        assertEquals(3000L, workerStatus.getCacheStatus().getTotalKvCache());
+        assertEquals(16L, workerStatus.getCacheStatus().getBlockSize());
+        assertEquals(42L, workerStatus.getCacheStatus().getVersion());
+        assertEquals(cachedKeys, workerStatus.getCacheStatus().getCachedKeys());
+        assertEquals(2L, workerStatus.getCacheStatus().getCacheKeySize());
+        assertEquals(1000L, workerStatus.getAvailableKvCacheTokens().get());
+        assertEquals(2000L, workerStatus.getUsedKvCacheTokens().get());
+    }
+
+    @Test
+    void should_ignoreMalformedKvCapacity_when_availableExceedsTotal() {
+        // Arrange
+        String modelName = "test-model";
+        String ipPort = "127.0.0.1:8080";
+        String site = "test-site";
+        String group = "test-group";
+
+        WorkerStatus workerStatus = new WorkerStatus();
+        workerStatus.setIp("127.0.0.1");
+        workerStatus.setPort(8080);
+
+        EngineRpcService.WorkerStatusPB workerStatusPB = EngineRpcService.WorkerStatusPB.newBuilder()
+                .setRole("test-role")
+                .setStatusVersion(100)
+                .setAvailableKvCache(4000)
+                .setTotalKvCache(3000)
+                .setBlockSize(16)
+                .setAlive(true)
+                .build();
+
+        RecordingEngineGrpcService engineGrpcService = new RecordingEngineGrpcService(workerStatusPB);
+
+        // Act
+        GrpcWorkerStatusRunner runner = new GrpcWorkerStatusRunner(
+                modelName, ipPort, site,
+                RoleType.PREFILL,
+                group, workerStatus, engineHealthReporter, engineGrpcService, 20);
+        runner.run();
+
+        // Assert
         assertNull(workerStatus.getCacheStatus());
         assertEquals(0L, workerStatus.getAvailableKvCacheTokens().get());
         assertEquals(0L, workerStatus.getUsedKvCacheTokens().get());

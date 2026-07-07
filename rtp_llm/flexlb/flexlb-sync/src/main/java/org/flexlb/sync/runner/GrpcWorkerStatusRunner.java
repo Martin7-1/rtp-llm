@@ -189,13 +189,22 @@ public class GrpcWorkerStatusRunner implements Runnable {
 
     private void updateKvCacheFromWorkerStatus(WorkerStatusResponse newWorkerStatus) {
         CacheStatus cacheStatus = newWorkerStatus.getCacheStatus();
-        if (cacheStatus == null || cacheStatus.getTotalKvCache() <= 0 || cacheStatus.getBlockSize() <= 0) {
+        if (cacheStatus == null || cacheStatus.getTotalKvCache() <= 0 || cacheStatus.getBlockSize() <= 0
+                || cacheStatus.getAvailableKvCache() < 0
+                || cacheStatus.getAvailableKvCache() > cacheStatus.getTotalKvCache()) {
             return;
         }
         long latestAvailableKvCacheTokens = cacheStatus.getAvailableKvCache();
         long latestUsedKvCacheTokens = cacheStatus.getTotalKvCache() - latestAvailableKvCacheTokens;
         workerStatus.updateKvCacheTokens(latestUsedKvCacheTokens, latestAvailableKvCacheTokens);
-        workerStatus.setCacheStatus(cacheStatus);
+        CacheStatus targetCacheStatus = workerStatus.getCacheStatus();
+        if (targetCacheStatus == null) {
+            targetCacheStatus = new CacheStatus();
+            workerStatus.setCacheStatus(targetCacheStatus);
+        }
+        targetCacheStatus.setAvailableKvCache(cacheStatus.getAvailableKvCache());
+        targetCacheStatus.setTotalKvCache(cacheStatus.getTotalKvCache());
+        targetCacheStatus.setBlockSize(cacheStatus.getBlockSize());
     }
 
     private void logWorkerStatusUpdate(long startTime, WorkerStatus workerStatus) {
